@@ -61,15 +61,26 @@ export default async function handler(req, res) {
     if (!message) return res.status(400).json({ error: "Message required" });
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+    const models = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
 
-    const chat = model.startChat({
-      history: [{ role: "user", parts: [{ text: "Instruções do sistema: " + SYSTEM_PROMPT }] },
-                { role: "model", parts: [{ text: "Entendido. Vou responder apenas sobre o Daniel Hoffmann com base no contexto fornecido, em terceira pessoa e no idioma do usuário." }] }],
-    });
-
-    const result = await chat.sendMessage(message);
-    const response = result.response.text();
+    let response;
+    for (const modelName of models) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const chat = model.startChat({
+          history: [
+            { role: "user", parts: [{ text: "Instruções do sistema: " + SYSTEM_PROMPT }] },
+            { role: "model", parts: [{ text: "Entendido. Vou responder apenas sobre o Daniel Hoffmann com base no contexto fornecido, em terceira pessoa e no idioma do usuário." }] }
+          ],
+        });
+        const result = await chat.sendMessage(message);
+        response = result.response.text();
+        break;
+      } catch (modelErr) {
+        console.error(`${modelName} failed:`, modelErr.message);
+        if (modelName === models[models.length - 1]) throw modelErr;
+      }
+    }
 
     if (!response) {
       return res.status(500).json({ error: "Resposta vazia do modelo" });
