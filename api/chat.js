@@ -71,9 +71,13 @@ export default async function handler(req, res) {
     const result = await chat.sendMessage(message);
     const response = result.response.text();
 
+    if (!response) {
+      return res.status(500).json({ error: "Resposta vazia do modelo" });
+    }
+
     res.json({ response });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Erro ao processar mensagem" });
+    console.error("Chat error:", err.message, err.stack);
+    res.status(500).json({ error: "Erro ao processar mensagem: " + err.message });
   }
 }
